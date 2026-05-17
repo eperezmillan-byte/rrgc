@@ -1,0 +1,12 @@
+{
+  "name": "gaceta-rrg",
+  "version": "1.0.0",
+  "description": "Relative Rotation Graph para Gaceta+ - análisis técnico de tickers vs SPY con proyección Monte Carlo + Hurst",
+  "private": true,
+  "dependencies": {
+    "@netlify/functions": "^2.8.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

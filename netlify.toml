@@ -1,0 +1,36 @@
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Redirects para que /api/* mapee a las funciones serverless
+[[redirects]]
+  from = "/api/quotes"
+  to = "/.netlify/functions/quotes"
+  status = 200
+
+[[redirects]]
+  from = "/api/fundamentals"
+  to = "/.netlify/functions/fundamentals"
+  status = 200
+
+[[redirects]]
+  from = "/api/cached-rrg"
+  to = "/.netlify/functions/cached-rrg"
+  status = 200
+
+# Función programada: lunes a viernes 13:00 y 19:00 hora Argentina (UTC-3)
+# 13:00 ART = 16:00 UTC
+# 19:00 ART = 22:00 UTC
+[functions."scheduled-calc"]
+  schedule = "0 16,22 * * 1-5"
+
+# Headers de seguridad
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
