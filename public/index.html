@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="es-AR">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#1a1f2e" />
+    <meta
+      name="description"
+      content="Relative Rotation Graph de Gaceta+ con proyección Monte Carlo y exponente de Hurst"
+    />
+    <title>Gaceta RRG · Relative Rotation Graph</title>
+    <link
+      rel="preconnect"
+      href="https://fonts.googleapis.com"
+    />
+    <link
+      rel="preconnect"
+      href="https://fonts.gstatic.com"
+      crossorigin
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <div class="paper-texture"></div>
+
+    <header class="masthead">
+      <div class="masthead-inner">
+        <div class="masthead-brand">
+          <div class="masthead-eyebrow">La Gaceta Mercantil</div>
+          <h1 class="masthead-title">Gaceta <span class="serif-italic">RRG</span></h1>
+          <div class="masthead-tagline">
+            Relative Rotation Graph · Análisis sectorial y de cartera
+          </div>
+        </div>
+        <div class="masthead-stamp" id="stampBox" aria-live="polite">
+          <div class="stamp-label">Última actualización</div>
+          <div class="stamp-value" id="stampValue">—</div>
+          <div class="stamp-mode" id="stampMode">10 días · diario</div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <!-- ============== CONTROLES ============== -->
+      <section class="controls card">
+        <div class="controls-row controls-tickers">
+          <label class="field-label">Tickers (8 máx)</label>
+          <div class="ticker-grid" id="tickerGrid">
+            <!-- inputs se generan por JS -->
+          </div>
+        </div>
+
+        <div class="controls-row controls-actions">
+          <div class="controls-left">
+            <div class="mode-toggle" role="group" aria-label="Modo de historial">
+              <button
+                type="button"
+                class="mode-btn is-active"
+                data-mode="daily"
+                aria-pressed="true"
+              >
+                10 días · diario
+              </button>
+              <button
+                type="button"
+                class="mode-btn"
+                data-mode="weekly"
+                aria-pressed="false"
+              >
+                10 semanas · semanal
+              </button>
+            </div>
+          </div>
+
+          <div class="controls-right">
+            <button type="button" id="btnCalc" class="btn btn-primary">
+              <span class="btn-icon" aria-hidden="true">●</span>
+              Calcular ahora
+            </button>
+            <button type="button" id="btnDownload" class="btn btn-ghost" disabled>
+              Descargar PNG
+            </button>
+            <button type="button" id="btnShare" class="btn btn-ghost" disabled>
+              Compartir
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============== TABS ============== -->
+      <nav class="tabs" role="tablist">
+        <button
+          type="button"
+          class="tab is-active"
+          role="tab"
+          aria-selected="true"
+          aria-controls="tab-rrg"
+          data-tab="rrg"
+        >
+          Gráfico
+        </button>
+        <button
+          type="button"
+          class="tab"
+          role="tab"
+          aria-selected="false"
+          aria-controls="tab-rotation"
+          data-tab="rotation"
+        >
+          Rotación
+        </button>
+        <button
+          type="button"
+          class="tab"
+          role="tab"
+          aria-selected="false"
+          aria-controls="tab-fundamentals"
+          data-tab="fundamentals"
+        >
+          Fundamentales
+        </button>
+      </nav>
+
+      <!-- ============== TAB: GRÁFICO ============== -->
+      <section
+        class="tab-panel is-active"
+        id="tab-rrg"
+        role="tabpanel"
+        aria-labelledby="tab-rrg"
+      >
+        <div class="chart-wrapper card" id="chartWrapper">
+          <div class="chart-header">
+            <div class="chart-title">Rotación relativa <span class="muted">vs SPY</span></div>
+            <div class="chart-legend" id="chartLegend"></div>
+          </div>
+          <div class="canvas-host">
+            <canvas id="rrgCanvas" width="1200" height="780" aria-label="Relative Rotation Graph"></canvas>
+            <div class="placeholder" id="chartPlaceholder">
+              <div class="placeholder-mark">RRG</div>
+              <p>
+                Cargá hasta 8 tickers y presioná <strong>Calcular ahora</strong>.<br />
+                El centro del gráfico es SPY (100, 100). Los cuadrantes son
+                <em>Leading</em>, <em>Weakening</em>, <em>Lagging</em>, <em>Improving</em>.
+              </p>
+            </div>
+            <div class="loader" id="chartLoader" hidden>
+              <div class="loader-spinner"></div>
+              <p>Calculando rotación...</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============== TAB: ROTACIÓN ============== -->
+      <section class="tab-panel" id="tab-rotation" role="tabpanel" aria-labelledby="tab-rotation" hidden>
+        <div class="card">
+          <div class="card-head">
+            <h2 class="card-title">Clasificación de rotación</h2>
+            <p class="card-sub">
+              Categoría según la trayectoria de los últimos 10
+              <span data-period-label>días</span> en el RRG.
+            </p>
+          </div>
+          <div class="rotation-legend">
+            <span class="rot-chip rot-conservadora">CONSERVADORA</span>
+            <span class="rot-text">improving → leading</span>
+            <span class="rot-sep">·</span>
+            <span class="rot-chip rot-agresiva">AGRESIVA</span>
+            <span class="rot-text">lagging → improving</span>
+            <span class="rot-sep">·</span>
+            <span class="rot-chip rot-salida">SALIDA</span>
+            <span class="rot-text">leading → weakening</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table" id="rotationTable">
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Cuadrante origen</th>
+                  <th>Cuadrante actual</th>
+                  <th>Δ RS-Ratio</th>
+                  <th>Δ RS-Momentum</th>
+                  <th>Categoría</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="empty-row">
+                  <td colspan="6">Sin datos. Presioná <strong>Calcular ahora</strong>.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============== TAB: FUNDAMENTALES ============== -->
+      <section
+        class="tab-panel"
+        id="tab-fundamentals"
+        role="tabpanel"
+        aria-labelledby="tab-fundamentals"
+        hidden
+      >
+        <div class="card">
+          <div class="card-head">
+            <h2 class="card-title">Análisis fundamental</h2>
+            <p class="card-sub">
+              Métricas de valuación, rentabilidad y salud financiera de los tickers seleccionados.
+            </p>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table fundamentals" id="fundTable">
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Sector</th>
+                  <th>Market Cap</th>
+                  <th>P/E</th>
+                  <th>P/B</th>
+                  <th>EPS</th>
+                  <th>Margen op.</th>
+                  <th>ROE</th>
+                  <th>Crec. rev.</th>
+                  <th>Deuda/Eq</th>
+                  <th>Div. Yield</th>
+                  <th>Target analistas</th>
+                  <th>52w rango</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="empty-row">
+                  <td colspan="13">Sin datos. Presioná <strong>Calcular ahora</strong>.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============== INFO METODOLOGÍA ============== -->
+      <details class="methodology">
+        <summary>Metodología</summary>
+        <div class="methodology-body">
+          <p>
+            <strong>JdK RS-Ratio</strong>: fuerza relativa normalizada del ticker vs SPY,
+            <code>100 · (RS / SMA(RS, 14))</code> donde <code>RS = Close / Close_SPY</code>.
+            <strong>JdK RS-Momentum</strong>:
+            <code>100 · (RS-Ratio / SMA(RS-Ratio, 14))</code>.
+          </p>
+          <p>
+            <strong>Proyección de 3 ruedas</strong>: se simulan rutas Monte Carlo
+            (500 trayectorias) usando log-retornos históricos modulados por el
+            <strong>exponente de Hurst</strong> (R/S analysis). El path promedio
+            se traduce en RS-Ratio/Momentum futuros y se dibuja como línea blanca
+            punteada desde la punta más reciente.
+          </p>
+          <p>
+            <strong>Precio objetivo técnico</strong>: combina dirección de SMA20,
+            ATR(14) y un horizonte de 3 ruedas → <code>target = Close + dir · ATR · 3</code>.
+          </p>
+          <p>
+            <strong>Clasificación de rotación</strong>: compara cuadrante inicial vs final
+            del trayecto observado. <em>CONSERVADORA</em>: improving→leading.
+            <em>AGRESIVA</em>: lagging→improving. <em>SALIDA</em>: leading→weakening.
+            Cualquier otra transición se etiqueta como <em>—</em>.
+          </p>
+        </div>
+      </details>
+
+      <footer class="footer">
+        <span>© La Gaceta Mercantil · Gaceta RRG</span>
+        <span class="footer-sep">·</span>
+        <span>Data: Yahoo Finance</span>
+        <span class="footer-sep">·</span>
+        <span>Auto-cálculo: lunes a viernes 13:00 y 19:00 ART</span>
+      </footer>
+    </main>
+
+    <div class="toast" id="toast" hidden></div>
+
+    <script src="/js/data.js"></script>
+    <script src="/js/rrg.js"></script>
+    <script src="/js/projection.js"></script>
+    <script src="/js/analysis.js"></script>
+    <script src="/js/chart.js"></script>
+    <script src="/js/app.js"></script>
+  </body>
+</html>
