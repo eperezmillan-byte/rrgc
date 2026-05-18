@@ -1,171 +1,82 @@
 // netlify/functions/quotes.js
-// Yahoo Finance con flujo cookie + crumb (requerido desde 2023).
+// Fuente: Twelve Data (https://twelvedata.com)
+// Plan gratuito: 800 créditos/día, 8 requests/minuto.
+// Soporta batch hasta 120 símbolos en una sola URL → ideal para nuestro caso.
 //
-// Stooq cambió en 2024 y ahora exige apikey con captcha para downloads
-// programáticos, así que volvemos a Yahoo pero haciendo el handshake correcto:
+// Requiere variable de entorno: TWELVE_DATA_API_KEY
+// Se configura en Netlify: Site settings → Environment variables → Add variable
 //
-//   1) GET https://fc.yahoo.com  → guardamos la cookie A1/A3 del Set-Cookie
-//   2) GET https://query2.finance.yahoo.com/v1/test/getcrumb (con esa cookie)
-//      → recibimos el crumb (string corto tipo "AbCdEf12.gH")
-//   3) GET https://query1.finance.yahoo.com/v8/finance/chart/SPY
-//      ?interval=1d&range=6mo&crumb=<crumb>  (con la misma cookie)
-//
-// La cookie+crumb se cachean en memoria del proceso. Mientras Netlify mantenga
-// "caliente" la instancia, se reusan. En cold start se hace de nuevo.
+// Documentación: https://twelvedata.com/docs#time-series
 
-const UA =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+const BASE = 'https://api.twelvedata.com/time_series';
 
-const COMMON_HEADERS = {
-  'User-Agent': UA,
-  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-  'Accept-Language': 'en-US,en;q=0.9',
-};
-
-// Estado en memoria (se mantiene mientras Netlify reusa la instancia)
-let authState = { cookie: null, crumb: null, expires: 0 };
-
-async function getYahooAuth() {
-  if (authState.crumb && Date.now() < authState.expires) {
-    return authState;
-  }
-
-  // Paso 1: obtener cookie
-  const sessionRes = await fetch('https://fc.yahoo.com/', {
-    headers: COMMON_HEADERS,
-    redirect: 'manual',
-  });
-  // Set-Cookie viene como header. En Node fetch puede venir como string múltiple.
-  const setCookieRaw =
-    sessionRes.headers.get('set-cookie') ||
-    sessionRes.headers.get('Set-Cookie') ||
-    '';
-  if (!setCookieRaw) {
-    throw new Error('fc.yahoo.com no devolvió Set-Cookie');
-  }
-  // Extraer A1=... o A3=...
-  const cookieMatch = setCookieRaw.match(/\b(A[13]=[^;,\s]+)/);
-  if (!cookieMatch) {
-    throw new Error('Cookie A1/A3 no encontrada en Set-Cookie');
-  }
-  const cookie = cookieMatch[1];
-
-  // Paso 2: obtener crumb
-  const crumbRes = await fetch(
-    'https://query2.finance.yahoo.com/v1/test/getcrumb',
-    {
-      headers: {
-        'User-Agent': UA,
-        Accept: 'text/plain,*/*',
-        Cookie: cookie,
-      },
-    }
-  );
-  if (!crumbRes.ok) {
-    throw new Error(`getcrumb HTTP ${crumbRes.status}`);
-  }
-  const crumb = (await crumbRes.text()).trim();
-  if (!crumb || crumb.length > 64 || crumb.includes('<')) {
-    throw new Error(`Crumb inválido: "${crumb.slice(0, 80)}"`);
-  }
-
-  authState = {
-    cookie,
-    crumb,
-    expires: Date.now() + 25 * 60 * 1000, // 25 min
-  };
-  return authState;
+function intervalToTD(interval) {
+  return interval === '1wk' ? '1week' : '1day';
 }
 
-async function fetchOne(symbol, interval, range) {
-  let auth;
-  try {
-    auth = await getYahooAuth();
-  } catch (err) {
-    return { symbol, error: `auth: ${err.message}`, series: [] };
-  }
-  const url =
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}` +
-    `?interval=${interval}&range=${range}&events=history` +
-    `&crumb=${encodeURIComponent(auth.crumb)}`;
+function outputSizeFor(interval) {
+  return interval === '1wk' ? 130 : 200; // suficiente para SMA(14) + trayecto + proyección
+}
 
-  let res;
-  try {
-    res = await fetch(url, {
-      headers: {
-        'User-Agent': UA,
-        Accept: 'application/json,text/plain,*/*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        Cookie: auth.cookie,
-      },
-    });
-  } catch (err) {
-    return { symbol, error: `network: ${err.message}`, series: [] };
-  }
-
-  if (!res.ok) {
-    // Si nos rechaza por crumb expirado/inválido, invalidamos cache
-    if (res.status === 401 || res.status === 403) {
-      authState.expires = 0;
-    }
-    return { symbol, error: `HTTP ${res.status}`, series: [] };
-  }
-
-  let data;
-  try {
-    data = await res.json();
-  } catch (err) {
-    return { symbol, error: `parse: ${err.message}`, series: [] };
-  }
-
-  if (data?.chart?.error) {
+// Convierte la respuesta de Twelve Data en nuestro formato interno.
+// Twelve Data devuelve datetime en orden DESC; lo invertimos a ASC.
+function normalizeBlock(symbol, block) {
+  if (!block || block.status === 'error') {
     return {
       symbol,
-      error: `yahoo: ${data.chart.error.code || data.chart.error.description || 'unknown'}`,
+      error: block?.message || 'error desconocido',
       series: [],
     };
   }
-
-  const result = data?.chart?.result?.[0];
-  if (!result) {
-    return { symbol, error: 'sin resultado', series: [] };
+  const values = block.values || [];
+  if (values.length === 0) {
+    return { symbol, error: 'sin valores', series: [] };
   }
-
-  const timestamps = result.timestamp || [];
-  const q = result.indicators?.quote?.[0] || {};
-  const closes = q.close || [];
-  const highs = q.high || [];
-  const lows = q.low || [];
-  const opens = q.open || [];
-  const volumes = q.volume || [];
-
+  // De más reciente a más antiguo → invertir
+  const asc = values.slice().reverse();
   const series = [];
-  for (let i = 0; i < timestamps.length; i++) {
-    if (closes[i] != null && Number.isFinite(closes[i])) {
-      series.push({
-        t: timestamps[i] * 1000,
-        o: opens[i] ?? closes[i],
-        h: highs[i] ?? closes[i],
-        l: lows[i] ?? closes[i],
-        c: closes[i],
-        v: volumes[i] || 0,
-      });
-    }
+  for (const v of asc) {
+    const c = parseFloat(v.close);
+    if (!Number.isFinite(c)) continue;
+    const t = Date.parse(
+      v.datetime.length === 10 ? `${v.datetime}T00:00:00Z` : v.datetime.replace(' ', 'T') + 'Z'
+    );
+    if (!Number.isFinite(t)) continue;
+    series.push({
+      t,
+      o: parseFloat(v.open),
+      h: parseFloat(v.high),
+      l: parseFloat(v.low),
+      c,
+      v: v.volume ? parseFloat(v.volume) : 0,
+    });
   }
-
   return {
     symbol,
-    currency: result.meta?.currency || 'USD',
+    currency: block.meta?.currency || 'USD',
     series,
   };
 }
 
 exports.handler = async (event) => {
   try {
+    const apiKey = process.env.TWELVE_DATA_API_KEY;
+    if (!apiKey) {
+      return {
+        statusCode: 500,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error:
+            'Falta la variable de entorno TWELVE_DATA_API_KEY. Configurarla en Netlify → Site settings → Environment variables.',
+        }),
+      };
+    }
+
     const params = event.queryStringParameters || {};
     const symbolsRaw = (params.symbols || '').trim();
     const interval = params.interval === '1wk' ? '1wk' : '1d';
-    const range = params.range || (interval === '1wk' ? '2y' : '6mo');
+    const tdInterval = intervalToTD(interval);
+    const outputsize = outputSizeFor(interval);
 
     if (!symbolsRaw) {
       return {
@@ -183,22 +94,65 @@ exports.handler = async (event) => {
     if (!symbols.includes('SPY')) symbols.push('SPY');
     symbols = Array.from(new Set(symbols)).slice(0, 12);
 
-    const results = await Promise.all(
-      symbols.map((s) => fetchOne(s, interval, range))
-    );
+    // Batch: separados por coma
+    const url =
+      `${BASE}?symbol=${encodeURIComponent(symbols.join(','))}` +
+      `&interval=${tdInterval}` +
+      `&outputsize=${outputsize}` +
+      `&order=desc` +
+      `&format=JSON` +
+      `&apikey=${encodeURIComponent(apiKey)}`;
+
+    const res = await fetch(url, {
+      headers: { Accept: 'application/json' },
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      return {
+        statusCode: 502,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error: `Twelve Data HTTP ${res.status}`,
+          detail: text.slice(0, 400),
+        }),
+      };
+    }
+
+    const data = await res.json();
+
+    // Twelve Data tiene 2 formatos de respuesta:
+    //   - 1 símbolo: { meta, values, status }
+    //   - N símbolos (batch): { "SPY": {...}, "GGAL": {...}, ... }
+    // Normalizamos a un array.
+    let results;
+    if (symbols.length === 1) {
+      results = [normalizeBlock(symbols[0], data)];
+    } else if (data && typeof data === 'object' && !Array.isArray(data)) {
+      results = symbols.map((s) => normalizeBlock(s, data[s]));
+    } else {
+      return {
+        statusCode: 502,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error: 'Formato de respuesta inesperado',
+          sample: JSON.stringify(data).slice(0, 400),
+        }),
+      };
+    }
 
     return {
       statusCode: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=180',
+        'Cache-Control': 'public, max-age=180', // 3 min cache CDN
         'Access-Control-Allow-Origin': '*',
       },
       body: JSON.stringify({
         interval,
-        range,
+        range: interval === '1wk' ? '2y' : '6mo',
         fetchedAt: new Date().toISOString(),
-        source: 'yahoo',
+        source: 'twelvedata',
         data: results,
       }),
     };
@@ -206,7 +160,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: err.message, stack: err.stack }),
+      body: JSON.stringify({ error: err.message }),
     };
   }
 };
