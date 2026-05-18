@@ -884,3 +884,59 @@ body {
     font-size: 1rem;
   }
 }
+
+/* ============================================================
+   PWA · BOTÓN INSTALAR
+   ============================================================ */
+
+.install-btn {
+  margin-top: 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.9rem;
+  background: transparent;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.install-btn::before {
+  content: "↓";
+  font-size: 14px;
+  line-height: 1;
+}
+
+.install-btn:hover {
+  background: var(--gold);
+  color: var(--paper);
+}
+
+.install-btn[hidden] {
+  display: none;
+}
+
+.install-hint {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--paper-warm);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--ink-soft);
+  max-width: 260px;
+  line-height: 1.4;
+}
+
+.install-hint[hidden] {
+  display: none;
+}
