@@ -66,8 +66,8 @@
     ctx.fillStyle = COLORS.paperWarm;
     ctx.fillRect(0, 0, cssW, cssH);
 
-    // Padding
-    const PAD = { top: 38, right: 48, bottom: 72, left: 68 };
+    // Padding (canvas limpio: sin header ni footer de texto, sólo gráfico)
+    const PAD = { top: 22, right: 32, bottom: 32, left: 58 };
     const plotX = PAD.left;
     const plotY = PAD.top;
     const plotW = cssW - PAD.left - PAD.right;
@@ -163,12 +163,6 @@
       const quad = quadrantOf(last.ratio, last.mom);
       drawTickerLabel(ctx, item, color, lx, ly, quad, plotX, plotY, plotW, plotH, labelBoxes);
     });
-
-    // Header: título y benchmark
-    drawHeader(ctx, cssW, PAD, payload);
-
-    // Footer: timestamp + leyenda de proyección
-    drawFooter(ctx, cssW, cssH, PAD, payload);
   }
 
   // ============================================================
@@ -213,8 +207,8 @@
   }
 
   function drawQuadrantLabels(ctx, x, y, w, h, cx, cy) {
-    ctx.font = '600 11px "JetBrains Mono", monospace';
-    ctx.fillStyle = 'rgba(26, 31, 46, 0.55)';
+    ctx.font = '500 10px "JetBrains Mono", monospace';
+    ctx.fillStyle = withAlpha(COLORS.inkMuted, 0.6);
     // top-right: Leading
     ctx.textAlign = 'right';
     ctx.textBaseline = 'top';
@@ -253,9 +247,6 @@
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(label, cx + 11, cy);
-    ctx.font = '500 9px "Inter", sans-serif';
-    ctx.fillStyle = COLORS.inkMuted;
-    ctx.fillText('benchmark · 100,100', cx + 11, cy + 11);
   }
 
   function drawAxisLabels(ctx, x, y, w, h, xLo, xHi, yLo, yHi, toX, toY) {
