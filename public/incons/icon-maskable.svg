@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Fondo a sangre (Android puede recortar bordes en formas circulares/squircle) -->
+  <rect width="512" height="512" fill="#14181f"/>
+
+  <!-- Todo el contenido relevante dentro del cuadrado central de 410x410 (zona segura 80%) -->
+  <g transform="translate(56 56) scale(0.78125)">
+    <!-- Ejes RRG sutiles -->
+    <g stroke="#d4b56f" stroke-opacity="0.18" stroke-width="2">
+      <line x1="86" y1="256" x2="426" y2="256"/>
+      <line x1="256" y1="86" x2="256" y2="426"/>
+    </g>
+
+    <!-- Trayectoria dorada -->
+    <path
+      d="M 200 320 C 230 290, 270 240, 320 200"
+      fill="none"
+      stroke="#d4b56f"
+      stroke-width="6"
+      stroke-linecap="round"
+      stroke-opacity="0.85"
+    />
+    <circle cx="200" cy="320" r="7" fill="#d4b56f" fill-opacity="0.55"/>
+    <circle cx="260" cy="262" r="8" fill="#d4b56f" fill-opacity="0.75"/>
+    <circle cx="320" cy="200" r="14" fill="#d4b56f"/>
+    <circle cx="320" cy="200" r="14" fill="none" stroke="#14181f" stroke-width="3"/>
+
+    <!-- Monograma -->
+    <text
+      x="256" y="430"
+      font-family="'Cormorant Garamond', 'Georgia', serif"
+      font-size="86"
+      font-weight="700"
+      fill="#e8e0c8"
+      text-anchor="middle"
+      letter-spacing="3"
+    >G+</text>
+  </g>
+</svg>
