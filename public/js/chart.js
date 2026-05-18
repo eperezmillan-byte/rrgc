@@ -66,8 +66,8 @@
     ctx.fillStyle = COLORS.paperWarm;
     ctx.fillRect(0, 0, cssW, cssH);
 
-    // Padding (canvas limpio: sin header ni footer de texto, sólo gráfico)
-    const PAD = { top: 22, right: 32, bottom: 32, left: 58 };
+    // Padding: top reducido (sin header), bottom suficiente para ticks + título de eje
+    const PAD = { top: 22, right: 32, bottom: 44, left: 58 };
     const plotX = PAD.left;
     const plotY = PAD.top;
     const plotW = cssW - PAD.left - PAD.right;
@@ -207,8 +207,8 @@
   }
 
   function drawQuadrantLabels(ctx, x, y, w, h, cx, cy) {
-    ctx.font = '500 10px "JetBrains Mono", monospace';
-    ctx.fillStyle = withAlpha(COLORS.inkMuted, 0.6);
+    ctx.font = '600 12px "JetBrains Mono", monospace';
+    ctx.fillStyle = withAlpha(COLORS.ink, 0.85);
     // top-right: Leading
     ctx.textAlign = 'right';
     ctx.textBaseline = 'top';
