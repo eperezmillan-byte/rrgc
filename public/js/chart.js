@@ -314,31 +314,44 @@
     const trail = item.trail || [];
     if (trail.length < 1) return;
 
-    // Línea del trail (con fade hacia el inicio usando gradiente segmentado)
-    for (let i = 1; i < trail.length; i++) {
-      const a = trail[i - 1], b = trail[i];
-      const opacity = 0.25 + 0.7 * (i / (trail.length - 1));
-      ctx.strokeStyle = withAlpha(color, opacity);
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.moveTo(toX(a.ratio), toY(a.mom));
-      ctx.lineTo(toX(b.ratio), toY(b.mom));
-      ctx.stroke();
+    // Puntos del trail en coordenadas de pantalla
+    const pts = trail.map((p) => ({ x: toX(p.ratio), y: toY(p.mom) }));
+
+    // Línea suavizada del trail con fade.
+    // Usamos Catmull-Rom → Bézier: cada segmento entre pts[i-1] y pts[i]
+    // se dibuja por separado para poder asignarle su propia opacidad.
+    if (pts.length >= 2) {
+      ctx.lineWidth = 1.6;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      for (let i = 1; i < pts.length; i++) {
+        const p0 = pts[i - 2] || pts[i - 1]; // si no hay anterior, repetimos
+        const p1 = pts[i - 1];
+        const p2 = pts[i];
+        const p3 = pts[i + 1] || pts[i];     // si no hay siguiente, repetimos
+        const cp = catmullRomCP(p0, p1, p2, p3, 0.5);
+
+        const opacity = 0.25 + 0.7 * (i / (pts.length - 1));
+        ctx.strokeStyle = withAlpha(color, opacity);
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.bezierCurveTo(cp.cp1x, cp.cp1y, cp.cp2x, cp.cp2y, p2.x, p2.y);
+        ctx.stroke();
+      }
     }
 
-    // Puntos del trail
-    for (let i = 0; i < trail.length - 1; i++) {
-      const p = trail[i];
-      const opacity = 0.25 + 0.7 * (i / Math.max(trail.length - 1, 1));
+    // Puntos del trail (excepto el último)
+    for (let i = 0; i < pts.length - 1; i++) {
+      const opacity = 0.25 + 0.7 * (i / Math.max(pts.length - 1, 1));
       ctx.fillStyle = withAlpha(color, opacity);
       ctx.beginPath();
-      ctx.arc(toX(p.ratio), toY(p.mom), 2.7, 0, Math.PI * 2);
+      ctx.arc(pts[i].x, pts[i].y, 2.7, 0, Math.PI * 2);
       ctx.fill();
     }
 
     // Último punto (real, más grande con borde)
-    const last = trail[trail.length - 1];
-    const lx = toX(last.ratio), ly = toY(last.mom);
+    const last = pts[pts.length - 1];
+    const lx = last.x, ly = last.y;
     ctx.beginPath();
     ctx.arc(lx, ly, 6.5, 0, Math.PI * 2);
     ctx.fillStyle = color;
@@ -347,18 +360,37 @@
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Proyección: línea punteada + marcadores huecos
+    // Proyección: línea punteada suavizada + marcadores huecos
     const proj = item.projection || [];
     if (proj.length) {
+      // Construimos una secuencia que incluye el último punto del trail como ancla,
+      // así la curva de proyección sale naturalmente desde ahí.
+      const projPts = [last, ...proj.map((p) => ({ x: toX(p.ratio), y: toY(p.mom) }))];
+
       ctx.setLineDash([5, 4]);
       ctx.strokeStyle = withAlpha(color, 0.85);
-      ctx.lineWidth = 1.4;
+      ctx.lineWidth = 1.6;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      // El "anterior" para el primer segmento usa la penúltima del trail si existe
+      // (así la curva sigue la dirección del recorrido), si no, repite el primero.
+      const prevAnchor = pts.length >= 2 ? pts[pts.length - 2] : projPts[0];
+
       ctx.beginPath();
-      ctx.moveTo(lx, ly);
-      for (const p of proj) ctx.lineTo(toX(p.ratio), toY(p.mom));
+      ctx.moveTo(projPts[0].x, projPts[0].y);
+      for (let i = 1; i < projPts.length; i++) {
+        const p0 = i === 1 ? prevAnchor : projPts[i - 2];
+        const p1 = projPts[i - 1];
+        const p2 = projPts[i];
+        const p3 = projPts[i + 1] || projPts[i];
+        const cp = catmullRomCP(p0, p1, p2, p3, 0.5);
+        ctx.bezierCurveTo(cp.cp1x, cp.cp1y, cp.cp2x, cp.cp2y, p2.x, p2.y);
+      }
       ctx.stroke();
       ctx.setLineDash([]);
 
+      // Marcadores huecos en cada punto de proyección
       for (const p of proj) {
         const px = toX(p.ratio), py = toY(p.mom);
         ctx.beginPath();
@@ -370,6 +402,22 @@
         ctx.stroke();
       }
     }
+  }
+
+  /**
+   * Calcula los puntos de control de una curva Bézier cúbica
+   * equivalente a un segmento Catmull-Rom entre p1 y p2.
+   * p0, p3 son los puntos vecinos (extender repitiendo en bordes).
+   * tension ∈ [0, 1]: 0.5 da un spline "uniforme" (clásico Catmull-Rom centripetal aproximado).
+   */
+  function catmullRomCP(p0, p1, p2, p3, tension = 0.5) {
+    const t = tension / 3; // dividido por 3 porque Bezier cúbico
+    return {
+      cp1x: p1.x + (p2.x - p0.x) * t,
+      cp1y: p1.y + (p2.y - p0.y) * t,
+      cp2x: p2.x - (p3.x - p1.x) * t,
+      cp2y: p2.y - (p3.y - p1.y) * t,
+    };
   }
 
   function drawTickerLabel(ctx, item, color, lx, ly, quad, x, y, w, h, boxes) {
