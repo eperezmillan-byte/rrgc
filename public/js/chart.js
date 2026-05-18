@@ -76,6 +76,7 @@
     // Determinar rangos
     const allR = [], allM = [];
     for (const it of payload.items) {
+      if (it.error || !it.trail) continue;
       for (const p of it.trail) {
         if (!isFinite(p.ratio) || !isFinite(p.mom)) continue;
         allR.push(p.ratio); allM.push(p.mom);
@@ -147,12 +148,14 @@
     const labelBoxes = [];
 
     payload.items.forEach((item, idx) => {
+      if (item.error || !item.trail) return;
       const color = item.color || colorFor(idx);
       drawTickerTrail(ctx, item, color, toX, toY);
     });
 
     // Etiquetas se dibujan al final para que queden arriba
     payload.items.forEach((item, idx) => {
+      if (item.error || !item.trail) return;
       const color = item.color || colorFor(idx);
       const last = item.trail[item.trail.length - 1];
       if (!last) return;
