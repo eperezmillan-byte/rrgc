@@ -8,33 +8,33 @@
 (function (global) {
   'use strict';
 
-  // Paleta de colores para tickers (editorial, contrasta con cream)
+  // Paleta de colores para tickers (dark-mode: luminosos sobre fondo oscuro)
   const PALETTE = [
-    '#1a1f2e', // navy ink
-    '#a8503c', // terracota
-    '#8e6f1f', // gold deep
-    '#4a7c4e', // sage
-    '#7d5a8a', // plum
-    '#3d6b6e', // teal
-    '#8b3a3a', // brick
-    '#5a7e3a', // olive
+    '#e8e0c8', // crema (reemplaza navy)
+    '#d47366', // terracota
+    '#d4b56f', // gold
+    '#6fb472', // sage
+    '#b08fc7', // plum
+    '#5fa8ab', // teal
+    '#d47a7a', // brick
+    '#9bc26a', // olive
   ];
 
   const COLORS = {
-    paperWarm: '#f9f2df',
-    paper: '#f5ecd7',
-    paperDeep: '#ede2c2',
-    ink: '#1a1f2e',
-    inkSoft: '#3a3f4d',
-    inkMuted: '#6b6357',
-    gold: '#b08c3a',
-    rule: '#c9b88a',
-    ruleSoft: '#e0d3a8',
-    qLeading: 'rgba(74, 124, 78, 0.06)',
-    qWeakening: 'rgba(176, 136, 64, 0.06)',
-    qLagging: 'rgba(168, 80, 60, 0.06)',
-    qImproving: 'rgba(77, 106, 138, 0.06)',
-    spy: '#1a1f2e',
+    paperWarm: '#1c2230',
+    paper: '#14181f',
+    paperDeep: '#0d1117',
+    ink: '#e8e0c8',
+    inkSoft: '#c2bba5',
+    inkMuted: '#8a8474',
+    gold: '#d4b56f',
+    rule: '#2e3645',
+    ruleSoft: '#232a37',
+    qLeading: 'rgba(111, 180, 114, 0.08)',
+    qWeakening: 'rgba(212, 168, 95, 0.08)',
+    qLagging: 'rgba(212, 115, 102, 0.08)',
+    qImproving: 'rgba(122, 158, 194, 0.08)',
+    spy: '#d4b56f',
   };
 
   function colorFor(idx) {
