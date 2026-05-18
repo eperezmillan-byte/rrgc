@@ -6,12 +6,22 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#1a1f2e" />
+    <meta name="theme-color" content="#14181f" />
     <meta
       name="description"
       content="Relative Rotation Graph de Gaceta+ con proyección Monte Carlo y exponente de Hurst"
     />
     <title>Gaceta RRG · Relative Rotation Graph</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icons/icon-192.png" type="image/png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Gaceta+ RRG" />
+
     <link
       rel="preconnect"
       href="https://fonts.googleapis.com"
@@ -43,6 +53,10 @@
           <div class="stamp-label">Última actualización</div>
           <div class="stamp-value" id="stampValue">—</div>
           <div class="stamp-mode" id="stampMode">10 días · diario</div>
+          <button type="button" class="install-btn" id="btnInstall" hidden>
+            Instalar
+          </button>
+          <div class="install-hint" id="installHint" hidden></div>
         </div>
       </div>
     </header>
@@ -291,5 +305,6 @@
     <script src="/js/analysis.js"></script>
     <script src="/js/chart.js"></script>
     <script src="/js/app.js"></script>
+    <script src="/js/install.js"></script>
   </body>
 </html>
