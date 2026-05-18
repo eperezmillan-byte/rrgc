@@ -6,7 +6,7 @@
   'use strict';
 
   // ========== CONFIG ==========
-  const DEFAULT_TICKERS = ['GGAL', 'BBAR', 'BMA', 'YPF', 'PAM', 'TGS', 'SUPV', 'VIST'];
+  const DEFAULT_TICKERS = ['', '', '', '', '', '', '', ''];
   const BENCHMARK = 'SPY';
   const PERIOD = 14; // SMAs del RRG
   const TRAIL_LEN = 10; // últimas 10 ruedas/semanas
